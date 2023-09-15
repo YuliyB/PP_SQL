@@ -13,66 +13,42 @@ public class UserDaoJDBCImpl extends Util implements UserDao {
 
     }
 
+    @Override
     public void createUsersTable() {
-        String sql = "CREATE TABLE `users` (\n" +
-                "  `id` INT NOT NULL AUTO_INCREMENT,\n" +
-                "  `name` VARCHAR(45) NOT NULL,\n" +
-                "  `lastName` VARCHAR(45) NOT NULL,\n" +
-                "  `age` INT NOT NULL,\n" +
-                "  PRIMARY KEY (`id`));";
-
-        try (Connection connection = getConnection(); Statement statement = connection.createStatement()) {
-            statement.execute(sql);
-        }catch (SQLSyntaxErrorException se) {
-            System.out.println("Table already exists");
-        } catch (SQLException e) {
-            System.out.println("CONNECTION ERROR");
-        }
+        String sql = "CREATE TABLE IF NOT EXISTS users " +
+                "(id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
+                "name VARCHAR(50) NOT NULL, lastname VARCHAR(50) NOT NULL, " +
+                "age TINYINT NOT NULL)";
+        execute(sql, "Таблица users создана.");
     }
 
+    @Override
     public void dropUsersTable() {
-
-        try (Connection connection = getConnection(); Statement statement = connection.createStatement()) {
-            statement.execute("DROP TABLE users");
-        } catch (SQLSyntaxErrorException se) {
-            System.out.println("Table does not exists");
-        }catch (SQLException e) {
-            System.out.println("CONNECTION ERROR");
-        }
+        String sql = "DROP TABLE IF EXISTS users";
+        execute(sql, "Таблица users удалена.");
     }
 
+    @Override
     public void saveUser(String name, String lastName, byte age) {
-        String sql = "INSERT INTO USERS (NAME, LASTNAME, AGE) VALUES ( ?, ?, ?)";
-
-        try (Connection connection = getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-            preparedStatement.setString(1, name);
-            preparedStatement.setString(2, lastName);
-            preparedStatement.setLong(3, age);
-
-            preparedStatement.executeUpdate();
-            System.out.printf("User с именем – %s добавлен в базу данных\n", name);
-        } catch (SQLException e) {
-            System.out.println("CONNECTION ERROR");
-        }
+        String sql = String.format("INSERT INTO USERS (NAME, LASTNAME, AGE) VALUES ( '%s', '%s', '%d')" ,name, lastName, age);
+        execute(sql,String.format("User с именем %s добавлен в таблицу",name) );
     }
 
+    @Override
     public void removeUserById(long id) {
-        String sql = "DELETE FROM USERS WHERE ID=?";
-
-        try (Connection connection = getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-            preparedStatement.setLong(1, id);
-            preparedStatement.executeUpdate();
-        } catch (SQLException e) {
-            System.out.println("CONNECTION ERROR");
-        }
+        String sql = String.format("DELETE FROM USERS WHERE ID=%d",id);
+        execute(sql, String.format("User с ID %d удален", id));
     }
 
+    @Override
     public List<User> getAllUsers() {
         List<User> userList = new ArrayList<>();
         String sql = "SELECT * FROM USERS";
 
-        try (Connection connection = getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
-            ResultSet rs = statement.executeQuery();
+        try (Connection connection = getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet rs = statement.executeQuery()) {
+
             while (rs.next()) {
                 User user = new User();
                 user.setId(rs.getLong("ID"));
@@ -87,13 +63,20 @@ public class UserDaoJDBCImpl extends Util implements UserDao {
         return userList;
     }
 
+    @Override
     public void cleanUsersTable() {
         String sql = "TRUNCATE TABLE users";
+        execute(sql, "Таблица users очищена.");
+    }
 
-        try (Connection connection = getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.executeUpdate(sql);
+    private void execute(String sql, String message) {
+        try (Connection connection = getConnection();
+             PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            preparedStatement.execute();
+            System.out.println(message);
         } catch (SQLException e) {
             System.out.println("CONNECTION ERROR");
+            System.out.println(e.getMessage());
         }
     }
 }
